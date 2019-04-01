@@ -17,6 +17,8 @@ AS (
 		,i.filter_definition FilterDefinition
 		,i.fill_factor [FillFactor]
 		,ds.name AS FileGroupOrPS
+		,(SELECT SUM(s.[used_page_count]) * 8.0/1024/1024 FROM 
+			sys.dm_db_partition_stats AS s WHERE s.[object_id] = i.[object_id] AND s.[index_id] = i.[index_id] ) IndexSizeInGb
 	FROM sys.indexes i
 	INNER JOIN sys.index_columns ic ON i.index_id = ic.index_id
 		AND i.object_id = ic.object_id
@@ -29,6 +31,7 @@ SELECT C.TableSchema + '.' + C.TableName TableName
 	,C.UniqueKey
 	,C.FilterDefinition
 	,C.[FillFactor]
+	,C.IndexSizeInGb
 	,STUFF((SELECT ',' + a.ColumnName + CASE is_descending_key WHEN 1 THEN ' DESC' ELSE '' END FROM CTE a WHERE C.ObjectId = a.ObjectId AND C.IndexId = a.IndexId AND key_ordinal > 0 
 			ORDER BY key_ordinal FOR XML PATH('') ), 1, 1, '') AS KeyColumns
 	,STUFF((SELECT ',' + a.ColumnName FROM CTE a WHERE C.ObjectId = a.ObjectId AND C.IndexId = a.IndexId AND partition_ordinal > 0 
@@ -50,6 +53,7 @@ GROUP BY C.ObjectId
 	,C.UniqueKey
 	,C.FilterDefinition
 	,C.[FillFactor]
+	,C.IndexSizeInGb
 	,C.FileGroupOrPS
 ORDER BY C.TableName ASC
 	,C.PrimaryKey DESC;
